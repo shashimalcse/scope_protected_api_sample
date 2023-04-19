@@ -24,6 +24,7 @@ type Tweet struct {
 
 type CreateTweetRequest struct {
 	Text string `json:"text"`
+	User string `json:"user"`
 }
 
 type service struct {
@@ -38,8 +39,11 @@ func (s service) Create(ctx context.Context, req CreateTweetRequest) (Tweet, err
 	if req.Text == "" {
 		return Tweet{}, errors.New("Invalid text")
 	}
+	if req.User == "" {
+		return Tweet{}, errors.New("Invalid user")
+	}
 	id := strconv.Itoa(len(tweets) + 1)
-	tweet := entity.Tweet{ID: id, Text: req.Text, User: ""}
+	tweet := entity.Tweet{ID: id, Text: req.Text, User: req.User}
 	tweets[id] = tweet
 	return s.Get(ctx, id)
 }
@@ -78,6 +82,7 @@ func (s service) Delete(ctx context.Context, id string) error {
 	if !ok {
 		return errors.New("Invalid tweet id")
 	}
+
 	delete(tweets, id)
 	return nil
 }

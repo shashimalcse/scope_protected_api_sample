@@ -1,7 +1,6 @@
 package tweet
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -16,6 +15,10 @@ func RegisterHandlers(r *echo.Group, service Service, handleScopes func(...strin
 		router.GET("/:id", issue.Get, handleScopes("tweet.read", "users.read"))
 		router.POST("", issue.Create, handleScopes("tweet.read", "tweet.write", "users.read"))
 		router.DELETE("/:id", issue.Delete, handleScopes("tweet.read", "tweet.write", "users.read"))
+		// router.GET("", issue.Query, handleScopes())
+		// router.GET("/:id", issue.Get, handleScopes())
+		// router.POST("", issue.Create, handleScopes())
+		// router.DELETE("/:id", issue.Delete, handleScopes())
 	}
 }
 
@@ -25,20 +28,28 @@ type tweet struct {
 
 func (r tweet) Get(c echo.Context) error {
 
-	issue, err := r.service.Get(c.Request().Context(), c.Param("id"))
+	tweet, err := r.service.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusExpectationFailed, err.Error())
 	}
 
-	return c.JSON(http.StatusOK, issue)
+	return c.JSON(http.StatusOK, tweet)
 }
 
 func (r tweet) Delete(c echo.Context) error {
 
-	user := c.Get("user").(*jwt.Token)
-	claims := user.Claims.(jwt.MapClaims)
-	fmt.Println(claims)
-	err := r.service.Delete(c.Request().Context(), c.Param("id"))
+	tweet, err := r.service.Get(c.Request().Context(), c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusNotFound, err.Error())
+	}
+
+	username := getUsername(c)
+
+	if tweet.User != username {
+		return c.JSON(http.StatusUnauthorized, "Unauthorized")
+	}
+
+	err = r.service.Delete(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusExpectationFailed, err.Error())
 	}
@@ -48,10 +59,13 @@ func (r tweet) Delete(c echo.Context) error {
 
 func (r tweet) Create(c echo.Context) error {
 
+	username := getUsername(c)
+
 	var input CreateTweetRequest
 	if err := c.Bind(&input); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid inputs. Please check your inputs")
 	}
+	input.User = username
 	issue, err := r.service.Create(c.Request().Context(), input)
 	if err != nil {
 		return c.JSON(http.StatusExpectationFailed, err.Error())
@@ -68,4 +82,12 @@ func (r tweet) Query(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, issue)
+}
+
+func getUsername(c echo.Context) string {
+
+	user := c.Get("user").(*jwt.Token)
+	claims := user.Claims.(jwt.MapClaims)
+	username := claims["username"].(string)
+	return username
 }

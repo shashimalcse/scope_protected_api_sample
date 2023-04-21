@@ -1,0 +1,2 @@
+jwks: "https://dev.api.asgardeo.io/t/apisecurityorg/oauth2/jwks"
+port: "8081" 

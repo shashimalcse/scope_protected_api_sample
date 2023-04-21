@@ -1,6 +1,7 @@
 package tweet
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -15,10 +16,6 @@ func RegisterHandlers(r *echo.Group, service Service, handleScopes func(...strin
 		router.GET("/:id", issue.Get, handleScopes("tweet.read", "users.read"))
 		router.POST("", issue.Create, handleScopes("tweet.read", "tweet.write", "users.read"))
 		router.DELETE("/:id", issue.Delete, handleScopes("tweet.read", "tweet.write", "users.read"))
-		// router.GET("", issue.Query, handleScopes())
-		// router.GET("/:id", issue.Get, handleScopes())
-		// router.POST("", issue.Create, handleScopes())
-		// router.DELETE("/:id", issue.Delete, handleScopes())
 	}
 }
 
@@ -43,7 +40,10 @@ func (r tweet) Delete(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, err.Error())
 	}
 
-	username := getUsername(c)
+	username, err := getUsername(c)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, err.Error())
+	}
 
 	if tweet.User != username {
 		return c.JSON(http.StatusUnauthorized, "Unauthorized")
@@ -59,7 +59,10 @@ func (r tweet) Delete(c echo.Context) error {
 
 func (r tweet) Create(c echo.Context) error {
 
-	username := getUsername(c)
+	username, err := getUsername(c)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, err.Error())
+	}
 
 	var input CreateTweetRequest
 	if err := c.Bind(&input); err != nil {
@@ -84,10 +87,13 @@ func (r tweet) Query(c echo.Context) error {
 	return c.JSON(http.StatusOK, issue)
 }
 
-func getUsername(c echo.Context) string {
+func getUsername(c echo.Context) (string, error) {
 
 	user := c.Get("user").(*jwt.Token)
 	claims := user.Claims.(jwt.MapClaims)
-	username := claims["username"].(string)
-	return username
+	username, ok := claims["username"].(string)
+	if !ok {
+		return "", errors.New("username not found in JWT claims")
+	}
+	return username, nil
 }

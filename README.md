@@ -26,6 +26,13 @@ Required Scope(s)
 * tweet.write
 * users.read
 
+Request body:
+```
+{
+    "text": "We need based AI!"
+}
+```
+
 ### DELETE /tweets/:id
 Deletes a tweet by its ID.
 
